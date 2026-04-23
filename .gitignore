@@ -12,3 +12,7 @@
 
 # MZinga local clone
 
+lab1-worker/.venv/
+lab1-worker/__pycache__/
+lab1-worker/.env
+mzinga/mzinga-apps/.env

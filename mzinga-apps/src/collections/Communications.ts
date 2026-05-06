@@ -10,6 +10,7 @@ import { Slugs } from "./Slugs";
 
 const access = new AccessUtils();
 const collectionUtils = new CollectionUtils(Slugs.Communications);
+
 const Communications: CollectionConfig = {
   slug: Slugs.Communications,
   access: {
@@ -25,7 +26,7 @@ const Communications: CollectionConfig = {
   admin: {
     ...collectionUtils.GeneratePreviewConfig(),
     useAsTitle: "subject",
-    defaultColumns: ["subject", "tos"],
+    defaultColumns: ["subject", "tos", "status"],
     group: "Notifications",
     disableDuplicate: true,
     enableRichTextRelationship: false,
@@ -33,22 +34,39 @@ const Communications: CollectionConfig = {
   hooks: {
     afterChange: [
       async ({ doc }) => {
+        if (process.env.COMMUNICATIONS_EXTERNAL_WORKER === "true") {
+          if (doc.status !== "pending") {
+            await payload.update({
+              collection: Slugs.Communications,
+              id: doc.id,
+              data: {
+                status: "pending",
+              },
+            });
+          }
+
+          return doc;
+        }
+
         const { tos, ccs, bccs, subject, body } = doc;
+
         for (const part of body) {
           if (part.type !== "upload") {
             continue;
           }
           const relationToSlug = part.relationTo;
-          const doc = await payload.findByID({
+          const uploadDoc = await payload.findByID({
             collection: relationToSlug,
             id: part.value.id,
           });
           part.value = {
             ...part.value,
-            ...doc,
+            ...uploadDoc,
           };
         }
+
         const html = TextUtils.Serialize(body || "");
+
         try {
           const users = await payload.find({
             collection: tos[0].relationTo,
@@ -58,10 +76,13 @@ const Communications: CollectionConfig = {
               },
             },
           });
+
           const usersEmails = users.docs.map((u) => u.email);
+
           if (!usersEmails.length) {
             throw new Error("No valid email addresses found for 'tos' users.");
           }
+
           let cc;
           if (ccs) {
             const copiedusers = await payload.find({
@@ -74,6 +95,7 @@ const Communications: CollectionConfig = {
             });
             cc = copiedusers.docs.map((u) => u.email).join(",");
           }
+
           let bcc;
           if (bccs) {
             const blindcopiedusers = await payload.find({
@@ -86,7 +108,9 @@ const Communications: CollectionConfig = {
             });
             bcc = blindcopiedusers.docs.map((u) => u.email).join(",");
           }
+
           const promises = [];
+
           for (const to of usersEmails) {
             const message = {
               from: payload.emailOptions.fromAddress,
@@ -96,6 +120,7 @@ const Communications: CollectionConfig = {
               bcc,
               html,
             };
+
             promises.push(
               MailUtils.sendMail(payload, message).catch((e) => {
                 MZingaLogger.Instance?.error(`[Communications:err] ${e}`);
@@ -103,6 +128,7 @@ const Communications: CollectionConfig = {
               }),
             );
           }
+
           await Promise.all(promises.filter((p) => Boolean(p)));
           return doc;
         } catch (err) {
@@ -110,8 +136,8 @@ const Communications: CollectionConfig = {
             err.response.body.errors.forEach((error) =>
               MZingaLogger.Instance?.error(
                 `[Communications:err]
-                ${error.field}
-                ${error.message}`,
+              ${error.field}
+              ${error.message}`,
               ),
             );
           } else {
@@ -127,6 +153,33 @@ const Communications: CollectionConfig = {
       name: "subject",
       type: "text",
       required: true,
+    },
+    {
+      name: "status",
+      type: "select",
+      defaultValue: "pending",
+      options: [
+        {
+          label: "Pending",
+          value: "pending",
+        },
+        {
+          label: "Processing",
+          value: "processing",
+        },
+        {
+          label: "Sent",
+          value: "sent",
+        },
+        {
+          label: "Failed",
+          value: "failed",
+        },
+      ],
+      admin: {
+        readOnly: true,
+        position: "sidebar",
+      },
     },
     {
       name: "tos",
@@ -158,7 +211,9 @@ const Communications: CollectionConfig = {
                 collection: Slugs.Users,
                 limit: 100,
               });
+
               const pages = firstSetOfUsers.totalPages;
+
               for (let i = 1; i < pages; i++) {
                 promises.push(
                   payload.find({
@@ -168,6 +223,7 @@ const Communications: CollectionConfig = {
                   }),
                 );
               }
+
               const allDocs = [firstSetOfUsers]
                 .concat(await Promise.all(promises))
                 .map((p) => p.docs)
@@ -175,8 +231,10 @@ const Communications: CollectionConfig = {
                 .map((d) => {
                   return { relationTo: Slugs.Users, value: d.id };
                 });
+
               value = allDocs;
             }
+
             return value;
           },
         ],

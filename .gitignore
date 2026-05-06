@@ -13,8 +13,5 @@
 # JetBrains
 .idea/
 
-# MZinga local clone
-mzinga/
-
 # Python
 __pycache__/

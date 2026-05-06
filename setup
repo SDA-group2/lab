@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+case "$1" in
+"dirs")
+  rm -rf /tmp/database /tmp/mzinga /tmp/messagebus
+  mkdir -p /tmp/database /tmp/mzinga /tmp/messagebus
+  ;;
+"docker")
+  DOCKER_COMPOSE_PATH="./mzinga-apps/docker-compose.yml"
+  if [[ ! -e "$DOCKER_COMPOSE_PATH" ]]; then
+    echo "error: couldn't find $DOCKER_COMPOSE_PATH"
+    exit 1
+  fi
+  docker compose --file "$DOCKER_COMPOSE_PATH" down
+  [ "$2" == "--down" ] && exit 0
+  docker compose --file "$DOCKER_COMPOSE_PATH" up database messagebus cache
+  ;;
+*)
+  echo "usage: $0 dirs || docker [--down]"
+  ;;
+esac

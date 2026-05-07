@@ -15,3 +15,6 @@
 
 # Python
 __pycache__/
+
+# Text files
+*.txt

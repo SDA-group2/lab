@@ -33,16 +33,6 @@ const Communications: CollectionConfig = {
     afterChange: [
       async ({ doc }) => {
         if (process.env.COMMUNICATIONS_EXTERNAL_WORKER === "true") {
-          if (doc.status !== "pending") {
-            await payload.update({
-              collection: Slugs.Communications,
-              id: doc.id,
-              data: {
-                status: "pending",
-              },
-            });
-          }
-
           return doc;
         }
 

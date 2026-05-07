@@ -14,12 +14,10 @@ const collectionUtils = new CollectionUtils(Slugs.Communications);
 const Communications: CollectionConfig = {
   slug: Slugs.Communications,
   access: {
-    read: access.GetIsAdmin,
     create: access.GetIsAdmin,
+    read: access.GetIsAdmin,
+    update: access.GetIsAdmin,
     delete: () => {
-      return false;
-    },
-    update: () => {
       return false;
     },
   },

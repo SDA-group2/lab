@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+if [[ $# != 1 ]]; then
+  echo "usage: $0 auth_token"
+  exit 1
+fi
+
+curl -g -s "http://localhost:3000/api/communications?where[status][equals]=pending&depth=1" \
+  -H "Authorization: Bearer $1"

@@ -1,18 +1,34 @@
 #!/usr/bin/env bash
+set -e
+
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+DATA_DIR="$BASE_DIR/.data"
 
 case "$1" in
 "dirs")
-  rm -rf /tmp/database /tmp/mzinga /tmp/messagebus
-  mkdir -p /tmp/database /tmp/mzinga /tmp/messagebus
+  rm -rf "$DATA_DIR/database" "$DATA_DIR/mzinga" "$DATA_DIR/messagebus"
+  mkdir -p "$DATA_DIR/database"
+  mkdir -p "$DATA_DIR/mzinga"
+  mkdir -p "$DATA_DIR/messagebus"
   ;;
 "docker")
   DOCKER_COMPOSE_PATH="./mzinga-apps/docker-compose.yml"
+
   if [[ ! -e "$DOCKER_COMPOSE_PATH" ]]; then
     echo "error: couldn't find $DOCKER_COMPOSE_PATH"
     exit 1
   fi
+
+  export DRIVER_OPTS_TYPE=none
+  export DRIVER_OPTS_OPTIONS=bind
+  export DRIVER_OPTS_DEVICE="$DATA_DIR"
+
+  export MONGO_HOST=database
+  export PAYLOAD_PUBLIC_DISABLED_ENTITIES_SLUGS=
+
   docker compose --file "$DOCKER_COMPOSE_PATH" down
   [ "$2" == "--down" ] && exit 0
+
   docker compose --file "$DOCKER_COMPOSE_PATH" up database messagebus cache
   ;;
 *)
